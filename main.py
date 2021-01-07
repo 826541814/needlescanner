@@ -8,6 +8,7 @@ import os
 import time
 
 from lib.core.data import logger
+from lib.core.interpreter import Parser
 from lib.core.loader import load_string_to_module
 from lib.core.settings import PATHS_POCS, POCS, CONF
 import queue
@@ -32,8 +33,12 @@ def banner():
 
 
 def init(config: dict):
-    print("[*] target:{}".format(config["url"]))
     patch_session()
+    args = Parser().args
+    print(args)
+    # parser.parse_args()
+    print("[*] target:{}".format(config["url"]))
+
     _pocs = []
     for root, dirs, files in os.walk(PATHS_POCS):
         files = filter(lambda x: x.endswith('.py') and not x.startswith('__') and x not in config.get('poc', []), files)
