@@ -7,10 +7,15 @@
 import os
 import time
 
-from lib.core.data import logger
+from lib.common.common import set_paths
+from lib.common.merge_dict import rec_merge
+from lib.core.data import logger, kb, paths
 from lib.core.interpreter import Parser
-from lib.core.loader import load_string_to_module
-from lib.core.settings import PATHS_POCS, POCS, CONF
+from lib.core.loader import load_string_to_module, PocLoader
+from lib.core.poc import POCBase
+from lib.core.register import load_file_to_module
+from lib.core.option import init_options
+from lib.core.settings import PATHS_POCS, POCS, CONF, PATHS_ROOT
 import queue
 
 from lib.core.threads import run_threads
@@ -33,22 +38,50 @@ def banner():
 
 
 def init(config: dict):
+    set_paths(PATHS_ROOT)
     patch_session()
-    args = Parser().args
-    print(args)
+    init_options()
+    Parser(config)
+    logger.debug(config)
     # parser.parse_args()
     print("[*] target:{}".format(config["url"]))
 
     _pocs = []
     for root, dirs, files in os.walk(PATHS_POCS):
         files = filter(lambda x: x.endswith('.py') and not x.startswith('__') and x not in config.get('poc', []), files)
-        _pocs.extend(map(lambda x: os.path.join(root, x), files))
+        for file in files:
+            # _pocs.append(os.path.join(root,file))
+            load_file_to_module(os.path.join(root, file))
+    for k, v in kb.registered_pocs.items():
+        # print(k)
+        # print(v.name)
+        # print(dir(v))
+        # print(v.get_info())
+        if v.vulID == '333':
 
-    for poc in _pocs:
-        with open(poc, 'r', encoding='utf-8') as f:
-            model = load_string_to_module(f.read())
-            POCS.append(model)
-    CONF.update(config)
+            output = v.execute(config.get('url'))
+            if output.is_success():
+                print(output.result)
+            else:
+                print('target is not vulnerable')
+    # print(kb.registered_pocs.items())
+
+    # for root, dirs, files in os.walk(PATHS_POCS):
+    #     files = filter(lambda x: x.endswith('.py') and not x.startswith('__') and x not in config.get('poc', []), files)
+    #     if keywords := config.get('use_pocs', None):
+    #         for file in files:
+    #             for keyword in keywords:
+    #                 if keyword in file:
+    #                     _pocs.append(os.path.join(root, file))
+    #                 else:
+    #                     pass
+    #     else:
+    #         _pocs.extend(map(lambda x: os.path.join(root, x), files))
+    # for poc in _pocs:
+    #     with open(poc, 'r', encoding='utf-8') as f:
+    #         model = load_string_to_module(f.read())
+    #         POCS.append(model)
+    # CONF.update(config)
 
 
 def end():
@@ -72,7 +105,7 @@ def start(config: dict):
         for poc in POCS:
             WORKER.put((arg, poc))
 
-    run_threads(config.get('thread_num', 10), worker)
+    run_threads(config.get('thread_num', CONF.get('threads', 4)), worker)
 
 
 # def start(config: dict):
@@ -104,6 +137,7 @@ def main():
         }
 
     }
+    rec_merge(config, CONF)
 
     init(config)
 

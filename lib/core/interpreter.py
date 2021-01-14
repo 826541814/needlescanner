@@ -5,14 +5,17 @@
 # Description:
 import argparse
 import ast
-from lib.common.merge_dict import rec_merge
-from lib.core.settings import CONF
+import logging
 
-conf = CONF
+from lib.core.data import logger
+from lib.core.enums import CUSTOM_LOGGING
+from lib.core.settings import VERSION, CONF
+from lib.common.merge_dict import rec_merge
+from lib.utils import str_to_dict
 
 
 class Parser:
-    def __init__(self):
+    def __init__(self, config):
         self.parser = argparse.ArgumentParser(prog='needle Scanner', usage='python3 main.py [options]..')
         self.target_group = self.parser.add_argument_group(title='Target',
                                                            description='At least one of these options has to be provided to define the target(s)')
@@ -25,21 +28,56 @@ class Parser:
 
         self.poc_group = self.parser.add_argument_group(title='Poc', description='Optimization options')
 
+        self.optional_parser()
         self.target_parser()
         self.mode_parser()
         self.request_parser()
         self.optimization_parser()
         self.poc_parser()
 
-        self.parser.add_argument('--version', help="Show program's version number and exit")
         self.args = self.parser.parse_args()
         self.format_args()
+
+        self.show_version()
+        rec_merge(config, self.args)
+
+    def show_version(self):
+        if self.args.get('version', False):
+            print('needle Scanner version: {}'.format(VERSION))
+            exit()
+        else:
+            return
+
+    def set_verbosity(self):
+        verbose = int(self.args.get('verbose', 1))
+        if verbose == 0:
+            logger.setLevel(logging.ERROR)
+        elif verbose == 1:
+            logger.setLevel(logging.INFO)
+        elif verbose == 2:
+            logger.setLevel(logging.DEBUG)
+        elif verbose == 3:
+            logger.setLevel(logging.DEBUG)
+            logger.setLevel(CUSTOM_LOGGING.SYSINFO)
+        elif verbose == 4:
+            logger.setLevel(logging.DEBUG)
+            logger.setLevel(CUSTOM_LOGGING.WARNING)
+        elif verbose >= 5:
+            logger.setLevel(logging.DEBUG)
+            logger.setLevel(CUSTOM_LOGGING.ERROR)
+
+    def optional_parser(self):
+        self.parser.add_argument('--version', help="Show program's version number and exit", action='store_true')
+        self.parser.add_argument('-v', '--verbose', help='Verbosity level: 0-6 (default 1)', type=int,
+                                 choices={0, 1, 2, 3, 4, 5, 6})
 
     def target_parser(self):
         target_group = self.target_group
         target_group.add_argument('-u', '--url', help='Target URL (e.g. "https://www.site.com/vuln.php?id=1")')
         target_group.add_argument('-f', '--file', help='Scan multiple targets given in a textual file')
         target_group.add_argument('-r', '--poc', help='Load Poc file From local or remote website')
+        target_group.add_argument('--use_pocs',
+                                  help='''Use poc file name's keyword to specify poc (e.g. "['ssh','cnnvd-xxx']"''')
         target_group.add_argument('-c', dest='configfile', help='Load options from a configuration INI file')
 
     def mode_parser(self):
@@ -55,7 +93,8 @@ class Parser:
         request_group.add_argument('--referer', help='HTTP Referer header value')
         request_group.add_argument('--proxy', help='Use a proxy to connect to the target URL')
         request_group.add_argument('--proxy_cred', help='Proxy authentication credentials (name:password)')
-        request_group.add_argument('--timeout', help='Seconds to wait before timeout connection (default:30)')
+        request_group.add_argument('--timeout', help='Seconds to wait before timeout connection (default:30)',
+                                   default=30, type=int)
         request_group.add_argument('--retry', help='Time out retrials times')
         request_group.add_argument('--delay', help='Delay between two request of one thread')
         request_group.add_argument('--headers', help='''Extra headers (e.g. "{'key1':'value1','key2':'value2'}")''')
@@ -81,14 +120,26 @@ class Parser:
         args = self.args
         if self.args.headers:
             self.args.headers = ast.literal_eval(args.headers)
-        if self.args.poc_args:
-            self.args.poc_args = ast.literal_eval(args.poc_args)
+        if self.args.use_pocs:
+            try:
+                self.args.use_pocs = str_to_dict(self.args.use_pocs)
+            except ValueError:
+                self.args.use_pocs = [args.use_pocs]
+            # try:
+            #     self.args.use_pocs = ast.literal_eval(args.use_pocs)
+            # except ValueError:
+            #     self.args.use_pocs = [args.use_pocs]
+            # except Exception as e:
+            #     logger.error(e)
+            #     exit()
 
+        if self.args.poc_args:
+            self.args.poc_args = str_to_dict(args.poc_args)
         args = vars(args)
         request = {}
         request.update((k, args[k]) for k in
-                            ['cookie', 'host', 'referer', 'proxy', 'proxy_cred', 'timeout', 'retry', 'delay',
-                             'headers'])
+                       ['cookie', 'host', 'referer', 'proxy', 'proxy_cred', 'timeout', 'retry', 'delay',
+                        'headers'])
         for key in request.keys():
             del args[key]
         args['requests'] = request

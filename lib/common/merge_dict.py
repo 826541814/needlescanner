@@ -12,13 +12,14 @@ def rec_merge(d1, d2):
     :return: d1:
     """
     for key, value in d2.items():
-        if key not in d1.keys():
-            d1[key] = value
-        else:
-            if isinstance(value, dict):
-                rec_merge(d1[key], value)
-            else:
+        if value:
+            if key not in d1.keys():
                 d1[key] = value
+            else:
+                if isinstance(value, dict):
+                    rec_merge(d1[key], value)
+                else:
+                    d1[key] = value
     return d1
 
 

@@ -11,7 +11,7 @@ import traceback
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
-from lib.core.settings import MAX_NUMBER_OF_THREADS
+# from lib.core.settings import MAX_NUMBER_OF_THREADS
 
 
 def exception_handled_function(thread_function, args=()):
