@@ -12,6 +12,7 @@ PATHS_OUTPUT = os.path.join(PATHS_ROOT, 'output')
 VERSION = 'V0.000001'
 POCS = []
 # MAX_NUMBER_OF_THREADS = 8
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.81 Safari/537.36"
 
 CONF = {
     'retry': 1,
@@ -20,10 +21,9 @@ CONF = {
     'requests': {
         'timeout': 30,
         'headers': {
-            'User-Agent': 'hello needle!'
+            'User-Agent': DEFAULT_USER_AGENT
         }
     }
 }
 DEFAULT_LISTENER_PORT = 6666
 
-DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.81 Safari/537.36"

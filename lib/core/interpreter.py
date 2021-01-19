@@ -39,6 +39,7 @@ class Parser:
         self.format_args()
 
         self.show_version()
+        self.set_verbosity()
         rec_merge(config, self.args)
 
     def show_version(self):
@@ -49,7 +50,8 @@ class Parser:
             return
 
     def set_verbosity(self):
-        verbose = int(self.args.get('verbose', 1))
+        verbose = int(self.args.get('verbose') or 1)
+
         if verbose == 0:
             logger.setLevel(logging.ERROR)
         elif verbose == 1:
@@ -65,6 +67,7 @@ class Parser:
         elif verbose >= 5:
             logger.setLevel(logging.DEBUG)
             logger.setLevel(CUSTOM_LOGGING.ERROR)
+        logger.debug('verbose level={}'.format(verbose))
 
     def optional_parser(self):
         self.parser.add_argument('--version', help="Show program's version number and exit", action='store_true')
@@ -73,11 +76,12 @@ class Parser:
 
     def target_parser(self):
         target_group = self.target_group
-        target_group.add_argument('-u', '--url', help='Target URL (e.g. "https://www.site.com/vuln.php?id=1")')
+        target_group.add_argument('-u', '--url', help='''Single or List of Target URL (e.g. "['url1','url2']")''')
         target_group.add_argument('-f', '--file', help='Scan multiple targets given in a textual file')
         target_group.add_argument('-r', '--poc', help='Load Poc file From local or remote website')
         target_group.add_argument('--use_pocs',
-                                  help='''Use poc file name's keyword to specify poc (e.g. "['ssh','cnnvd-xxx']"''')
+                                  help='''Use poc name's keyword or vulID to specify poc (e.g. "['ssh_burst','0001']"''',
+                                  type=str)
         target_group.add_argument('-c', dest='configfile', help='Load options from a configuration INI file')
 
     def mode_parser(self):
@@ -97,6 +101,7 @@ class Parser:
                                    default=30, type=int)
         request_group.add_argument('--retry', help='Time out retrials times')
         request_group.add_argument('--delay', help='Delay between two request of one thread')
+        request_group.add_argument('--params', help='''set params for request (e.g. "{'key1':'value1'}")''')
         request_group.add_argument('--headers', help='''Extra headers (e.g. "{'key1':'value1','key2':'value2'}")''')
 
     def optimization_parser(self):
@@ -120,18 +125,26 @@ class Parser:
         args = self.args
         if self.args.headers:
             self.args.headers = ast.literal_eval(args.headers)
-        if self.args.use_pocs:
+        if self.args.params:
+            self.args.params = ast.literal_eval(args.params)
+
+        if self.args.url:
             try:
-                self.args.use_pocs = str_to_dict(self.args.use_pocs)
-            except ValueError:
-                self.args.use_pocs = [args.use_pocs]
-            # try:
-            #     self.args.use_pocs = ast.literal_eval(args.use_pocs)
-            # except ValueError:
-            #     self.args.use_pocs = [args.use_pocs]
-            # except Exception as e:
-            #     logger.error(e)
-            #     exit()
+                self.args.url = ast.literal_eval(self.args.url)
+            except Exception:
+                self.args.url = [self.args.url]
+        # if self.args.use_pocs:
+        #     try:
+        #         self.args.use_pocs = str_to_dict(self.args.use_pocs)
+        #     except ValueError:
+        #         self.args.use_pocs = [args.use_pocs]
+        # try:
+        #     self.args.use_pocs = ast.literal_eval(args.use_pocs)
+        # except ValueError:
+        #     self.args.use_pocs = [args.use_pocs]
+        # except Exception as e:
+        #     logger.error(e)
+        #     exit()
 
         if self.args.poc_args:
             self.args.poc_args = str_to_dict(args.poc_args)
@@ -139,7 +152,7 @@ class Parser:
         request = {}
         request.update((k, args[k]) for k in
                        ['cookie', 'host', 'referer', 'proxy', 'proxy_cred', 'timeout', 'retry', 'delay',
-                        'headers'])
+                        'headers', 'params'])
         for key in request.keys():
             del args[key]
         args['requests'] = request

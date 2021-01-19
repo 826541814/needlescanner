@@ -156,7 +156,7 @@ class POCBase(object):
             raise NeedleInvalidModeException
         return output
 
-    def execute(self, target, headers=None, params=None, mode='verify', verbose=True):
+    def execute(self, target, headers=None, params=None, mode='verify', verbose=True, **kwargs):
         self.target = target
         self.url = parse_target_url(target) if self.current_protocol == POC_CATEGORY.PROTOCOL.HTTP else self.build_url()
         self.headers = headers
@@ -164,6 +164,8 @@ class POCBase(object):
         self.mode = mode
         self.verbose = verbose
         self.expt = (0, 'None')
+        # import requests
+        # print(requests.get(target,params=params).text)
         # TODO
         output = None
         try:
@@ -181,6 +183,7 @@ class POCBase(object):
                     break
                 except ConnectTimeout:
                     logger.debug('POC:{0} time-out retry failed!'.format(self.name))
+                counts -= 1
                 conf['retry'] = counts
             else:
                 msg = "connect target '{0}' failed!".format(target)
@@ -200,8 +203,8 @@ class POCBase(object):
             logger.debug(str(e))
             output = Output(self)
         except BaseException as e:
-            self.expt = (ERROR_TYPE_ID.OTHER,e)
-            logger.error('PoC {0} has raised a exception: {1}'.format(self.name,e))
+            self.expt = (ERROR_TYPE_ID.OTHER, e)
+            logger.error('PoC {0} has raised a exception: {1}'.format(self.name, e))
             output = Output(self)
         return output
 
@@ -239,6 +242,7 @@ class Output(object):
         self.result = {}
         self.status = OUTPUT_STATUS.FAILED
         if poc:
+            self.target = poc.target
             self.url = poc.url
             self.mode = poc.mode
             self.vul_id = poc.vulID
@@ -250,6 +254,11 @@ class Output(object):
 
     def is_success(self):
         return bool(True and self.status)
+
+    def show_result(self):
+        msg = "target: {} is Vulnerability".format(self.url) if self.status else "target: {} is not Vulnerability".format(
+            self.url)
+        return msg
 
     def success(self, result):
         assert isinstance(result, dict)
@@ -264,18 +273,18 @@ class Output(object):
         self.expt = (ERROR_TYPE_ID.OTHER, error)
         self.error_msg = (0, error)
 
-    def show_result(self):
-        if self.status == OUTPUT_STATUS.SUCCESS:
-            for k, v in self.result.items():
-                if isinstance(v, dict):
-                    for kk, vv in v.items():
-                        #     if (kk == "URL" or kk == "IP") and conf.ppt:
-                        #         vv = desensitization(vv)
-                        logger.log(CUSTOM_LOGGING.SUCCESS, "%s : %s" % (kk, vv))
-                else:
-                    # if (k == "URL" or k == "IP") and conf.ppt:
-                    #     v = desensitization(v)
-                    logger.log(CUSTOM_LOGGING.SUCCESS, "%s : %s" % (k, v))
+    # def show_result(self):
+    #     if self.status == OUTPUT_STATUS.SUCCESS:
+    #         for k, v in self.result.items():
+    #             if isinstance(v, dict):
+    #                 for kk, vv in v.items():
+    #                     #     if (kk == "URL" or kk == "IP") and conf.ppt:
+    #                     #         vv = desensitization(vv)
+    #                     logger.log(CUSTOM_LOGGING.SUCCESS, "%s : %s" % (kk, vv))
+    #             else:
+    # if (k == "URL" or k == "IP") and conf.ppt:
+    #     v = desensitization(v)
+    # logger.log(CUSTOM_LOGGING.SUCCESS, "%s : %s" % (k, v))
 
 
 def to_dict(self):
