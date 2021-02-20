@@ -16,7 +16,7 @@ from lib.utils import str_to_dict
 
 class Parser:
     def __init__(self, config):
-        self.parser = argparse.ArgumentParser(prog='needle Scanner', usage='python3 main.py [options]..')
+        self.parser = argparse.ArgumentParser(prog='needle Scanner', usage='python3 needle.py [options]..')
         self.target_group = self.parser.add_argument_group(title='Target',
                                                            description='At least one of these options has to be provided to define the target(s)')
         self.mode_group = self.parser.add_argument_group(title='Mode', description='Scanner running model options')
@@ -41,6 +41,7 @@ class Parser:
         self.show_version()
         self.set_verbosity()
         rec_merge(config, self.args)
+        logger.debug(f'conf: {config}')
 
     def show_version(self):
         if self.args.get('version', False):
@@ -50,7 +51,7 @@ class Parser:
             return
 
     def set_verbosity(self):
-        verbose = int(self.args.get('verbose') or 1)
+        verbose = int(self.args.get('verbose', 1))
 
         if verbose == 0:
             logger.setLevel(logging.ERROR)
@@ -72,15 +73,15 @@ class Parser:
     def optional_parser(self):
         self.parser.add_argument('--version', help="Show program's version number and exit", action='store_true')
         self.parser.add_argument('-v', '--verbose', help='Verbosity level: 0-6 (default 1)', type=int,
-                                 choices={0, 1, 2, 3, 4, 5, 6})
+                                 choices={0, 1, 2, 3, 4, 5, 6}, default=1)
 
     def target_parser(self):
         target_group = self.target_group
         target_group.add_argument('-u', '--url', help='''Single or List of Target URL (e.g. "['url1','url2']")''')
         target_group.add_argument('-f', '--file', help='Scan multiple targets given in a textual file')
         target_group.add_argument('-r', '--poc', help='Load Poc file From local or remote website')
-        target_group.add_argument('--use_pocs',
-                                  help='''Use poc name's keyword or vulID to specify poc (e.g. "['ssh_burst','0001']"''',
+        target_group.add_argument('--use_poc',
+                                  help='''Use poc name's keyword or vulID to specify poc (e.g. "ssh_burst" or "0001"''',
                                   type=str)
         target_group.add_argument('-c', dest='configfile', help='Load options from a configuration INI file')
 

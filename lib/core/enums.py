@@ -17,10 +17,10 @@ class LOGGING_LEVELS:
 
 
 class CUSTOM_LOGGING:
-    SYSINFO = 21
-    SUCCESS = 22
-    ERROR = 23
-    WARNING = 24
+    SYSINFO = 1
+    SUCCESS = 2
+    ERROR = 3
+    WARNING = 4
 
 
 class OUTPUT_STATUS:

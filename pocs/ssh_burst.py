@@ -128,7 +128,7 @@ def ssh_login(host, port, username=None, password=None) -> int:
 def task_init(host, port):
     for username, password in get_word_list():
         task_queue.put((host, port, username.strip(), password.strip()))
-        logger.info('username: {} password:{}'.format(username, password))
+        logger.debug('username: {} password:{}'.format(username, password))
 
 
 def task_thread():

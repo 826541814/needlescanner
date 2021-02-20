@@ -26,6 +26,7 @@ class POCBase(object):
         self.type = None
         self.target = None
         self.headers = None
+        self.target_id = None
         self.url = None
         self.mode = None
         self.params = None
@@ -156,7 +157,8 @@ class POCBase(object):
             raise NeedleInvalidModeException
         return output
 
-    def execute(self, target, headers=None, params=None, mode='verify', verbose=True, **kwargs):
+    def execute(self, target_id=0, target="", headers=None, params=None, mode='verify', verbose=True, **kwargs):
+        self.target_id = target_id
         self.target = target
         self.url = parse_target_url(target) if self.current_protocol == POC_CATEGORY.PROTOCOL.HTTP else self.build_url()
         self.headers = headers
@@ -176,7 +178,8 @@ class POCBase(object):
             output = Output(self)
         except ConnectTimeout as e:
             self.expt = (ERROR_TYPE_ID.CONNECTTIMEOUT, e)
-            while counts := conf.get('retry', 0) > 0:
+            counts = conf.get('retry',0)
+            while counts > 0:
                 logger.debug('POC:{0} timeout, start is over.'.format(self.name))
                 try:
                     output = self._execute()
@@ -242,6 +245,7 @@ class Output(object):
         self.result = {}
         self.status = OUTPUT_STATUS.FAILED
         if poc:
+            self.target_id = poc.target_id
             self.target = poc.target
             self.url = poc.url
             self.mode = poc.mode
@@ -256,8 +260,9 @@ class Output(object):
         return bool(True and self.status)
 
     def show_result(self):
-        msg = "target: {} is Vulnerability".format(self.url) if self.status else "target: {} is not Vulnerability".format(
-            self.url)
+        msg = "target {}: {} is exist [{}].".format(
+            self.target_id, self.url, self.name) if self.status else "target {}: {} is not exist [{}]".format(
+            self.target_id, self.url, self.name)
         return msg
 
     def success(self, result):
